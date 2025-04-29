@@ -1,0 +1,11 @@
+[package]
+name = "wakatime-readme-connect"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+reqwest = { version = "0.12.15", features = ["blocking", "json"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_yaml = "0.9.34+deprecated"
+serde_json = "1.0.140"
+base64 = "0.22.1"
