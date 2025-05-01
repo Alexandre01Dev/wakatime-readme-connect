@@ -1,5 +1,6 @@
 use crate::{config::Config, md_modules};
 use base64::{Engine, engine::general_purpose};
+use chrono::format;
 use reqwest::blocking::Client;
 use serde_json::json;
 
@@ -41,7 +42,7 @@ pub fn get_and_update(
                 Some(end) => {
                     found = true;
                     let start = start + "<!-- START_WAKATIME_BLOCK -->".len();
-                    content.replace_range(start..end, &modules.render(config));
+                    content.replace_range(start..end, &format!("\n{}", &modules.render(config)));
                 }
                 None => {
                     println!("No end block found");

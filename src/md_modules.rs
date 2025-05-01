@@ -1,7 +1,5 @@
-use chrono::format;
-
 use crate::config::Config;
-use crate::wakatime_api::{Range, Statistic, StatisticData, WrappedStatistic, get_from_range};
+use crate::wakatime_api::{Range, StatisticData, WrappedStatistic, get_from_range};
 use std::collections::HashMap;
 
 pub trait MdModule {

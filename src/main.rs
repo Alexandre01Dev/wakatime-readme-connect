@@ -1,9 +1,11 @@
 use md_modules::{MdModule, TopEditorsModule};
+use std::{thread, time::Duration};
 
-use crate::wakatime_api::{Range, get_from, get_from_range};
+use crate::wakatime_api::{Range, get_from_range};
 
 mod config;
 mod github_api;
+mod lang_icons;
 mod md_modules;
 mod modules;
 mod wakatime_api;
@@ -66,26 +68,42 @@ fn main() {
                 println!("Total seconds: {}", category.get_total_seconds());
                 println!("Percentage: {}", category.get_percent());
             }
+            loop {
+                // Creation of the modules.
+                let module_editors: TopEditorsModule =
+                    md_modules::TopEditorsModule::new(Range::This6Months);
 
-            // Creation of the modules.
-            let module_editors: TopEditorsModule =
-                md_modules::TopEditorsModule::new(Range::This6Months);
+                let module_languages_week: modules::top_languages::TopLanguagesModule =
+                    modules::top_languages::TopLanguagesModule::new_with_name(
+                        "My TOP **5** Languages This Week".to_string(),
+                        Range::This7Days,
+                        5,
+                    );
 
-            let module_languages: modules::top_languages::TopLanguagesModule =
-                modules::top_languages::TopLanguagesModule::new(Range::This7Days, 5);
+                let module_languages_all_time: modules::top_languages::TopLanguagesModule =
+                    modules::top_languages::TopLanguagesModule::new_with_name(
+                        "My TOP **5** Language ALL Time".to_string(),
+                        Range::AllTime,
+                        5,
+                    );
 
-            // Create modules document
-            let mut modules = md_modules::MdDocument::new("Wakatime Statistics");
+                // Create modules document
+                let mut modules = md_modules::MdDocument::new("Wakatime Statistics");
 
-            // Add modules to the document
-            modules.add_module(Box::new(module_editors));
-            modules.add_module(Box::new(module_languages));
-            let result = github_api::get_and_update(&config, modules);
-            match result {
-                Ok(_) => println!("GitHub API call succeeded"),
-                Err(e) => eprintln!("GitHub API call failed: {}", e),
+                // Add modules to the document
+                modules.add_module(Box::new(module_editors));
+                modules.add_module(Box::new(module_languages_week));
+                modules.add_module(Box::new(module_languages_all_time));
+                let result = github_api::get_and_update(&config, modules);
+                match result {
+                    Ok(_) => println!("GitHub API call succeeded"),
+                    Err(e) => eprintln!("GitHub API call failed: {}", e),
+                }
+                thread::sleep(Duration::from_secs(60 * 30)); // Sleep for 30 min
+                println!("Reloading modules...");
             }
         }
+
         Err(e) => eprintln!("Error: {}", e),
     }
 }
