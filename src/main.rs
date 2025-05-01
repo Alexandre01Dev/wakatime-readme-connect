@@ -1,14 +1,18 @@
-use crate::wakatime_api::{get_from, get_from_range, Range};
+use md_modules::{MdModule, TopEditorsModule};
+
+use crate::wakatime_api::{Range, get_from, get_from_range};
 
 mod config;
+mod github_api;
+mod md_modules;
+mod modules;
 mod wakatime_api;
 mod wakatime_error;
-mod github_api;
 
 fn main() {
     let config = config::load_config();
 
-    let response = get_from_range(Range::This7Days,&config);
+    let response = get_from_range(Range::This7Days, &config);
 
     match response {
         Ok(statistic) => {
@@ -16,11 +20,17 @@ fn main() {
             println!("Username: {}", stat.get_username());
             println!("Total seconds: {}", stat.get_total_seconds());
             println!("Daily average: {}", stat.get_daily_average());
-            println!("Days including holidays: {}", stat.get_days_including_holidays());
+            println!(
+                "Days including holidays: {}",
+                stat.get_days_including_holidays()
+            );
             println!("Range: {}", stat.get_range());
             println!("Human readable range: {}", stat.get_human_readable_range());
             println!("Human readable total: {}", stat.get_human_readable_total());
-            println!("Human readable daily average: {}", stat.get_human_readable_daily_average());
+            println!(
+                "Human readable daily average: {}",
+                stat.get_human_readable_daily_average()
+            );
             for editor in stat.get_editors() {
                 println!("Editor: {}", editor.get_name());
                 println!("Total seconds: {}", editor.get_total_seconds());
@@ -56,8 +66,26 @@ fn main() {
                 println!("Total seconds: {}", category.get_total_seconds());
                 println!("Percentage: {}", category.get_percent());
             }
+
+            // Creation of the modules.
+            let module_editors: TopEditorsModule =
+                md_modules::TopEditorsModule::new(Range::This6Months);
+
+            let module_languages: modules::top_languages::TopLanguagesModule =
+                modules::top_languages::TopLanguagesModule::new(Range::This7Days, 5);
+
+            // Create modules document
+            let mut modules = md_modules::MdDocument::new("Wakatime Statistics");
+
+            // Add modules to the document
+            modules.add_module(Box::new(module_editors));
+            modules.add_module(Box::new(module_languages));
+            let result = github_api::get_and_update(&config, modules);
+            match result {
+                Ok(_) => println!("GitHub API call succeeded"),
+                Err(e) => eprintln!("GitHub API call failed: {}", e),
+            }
         }
         Err(e) => eprintln!("Error: {}", e),
     }
-
 }

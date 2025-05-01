@@ -8,6 +8,11 @@ pub struct Config {
     wakatime_api_token: String,
     wakatime_user: String,
     wakatime_platform: Platform,
+    github_api_token: String,
+    github_user: String,
+    github_repo: String,
+    github_branch: String,
+    github_md_file: String,
 }
 
 #[derive(Deserialize, Serialize, Debug, PartialEq,Ord, PartialOrd, Eq)]
@@ -31,13 +36,32 @@ impl Config {
     pub fn get_wakatime_platform(&self) -> &Platform {
         &self.wakatime_platform
     }
+
+    pub fn get_github_api_token(&self) -> &str {
+        &self.github_api_token
+    }
+
+    pub fn get_github_user(&self) -> &str {
+        &self.github_user
+    }
+
+    pub fn get_github_repo(&self) -> &str {
+        &self.github_repo
+    }
+    
+    pub fn get_github_branch(&self) -> &str {
+        &self.github_branch
+    }
+    
+    pub fn get_github_md_file(&self) -> &str {
+        &self.github_md_file
+    }
 }
 
 pub fn load_config() -> Config {
     // Essayer de charger le fichier de configuration
     match fs::read_to_string("config.yaml") {
         Ok(config_content) => {
-            // Fichier trouvé, analyser le contenu
             serde_yaml::from_str(&config_content).expect("Impossible to parse the configuration file")
         },
         Err(_) => {
@@ -46,6 +70,11 @@ pub fn load_config() -> Config {
                 wakatime_api_token: "your_api_token".to_string(),
                 wakatime_user: "current".to_string(),
                 wakatime_platform: Platform::Wakatime,
+                github_api_token: "your_github_api_token".to_string(),
+                github_user: "your_github_username".to_string(),
+                github_repo: "your_github_repo".to_string(),
+                github_branch: "main".to_string(),
+                github_md_file: "README.md".to_string(),
             };
 
             let default_content = serde_yaml::to_string(&default_config).expect("Impossible to serialize the default configuration");

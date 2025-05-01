@@ -1,17 +1,14 @@
-use std::cmp::PartialEq;
-use std::fmt::format;
-use reqwest::blocking::RequestBuilder;
-use serde::Deserialize;
 use crate::config::{Config, Platform};
 use crate::wakatime_error::WakatimeApiError;
-
-
-
+use reqwest::blocking::RequestBuilder;
+use serde::Deserialize;
+use std::cmp::PartialEq;
+use std::fmt::format;
 
 //**
 //*A user's coding activity for the given time range. Optional range can be a YYYY year, YYYY-MM month, or one of last_7_days, last_30_days, last_6_months, last_year, or all_time. When range isn’t present, the user’s public profile range is used. For accounts subscribed to the free plan, time ranges >= one year are updated on the first request. It’s best to always check is_up_to_date and retry your request when the response is stale. Stats are read-only representations of Heartbeats, Durations, and Summaries, created by joining multiple Heartbeats together when they’re within 15 minutes of each other. The 15 minutes default can be changed with your account’s Keystroke Timeout preference.
 //*
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Range {
     Today,
     Yesterday,
@@ -29,23 +26,36 @@ pub enum Range {
     Any,
 }
 
-
 impl Range {
     pub fn as_str(&self, config: &Config) -> String {
         let is_wakapi = config.get_wakatime_platform().eq(&Platform::Wakapi);
 
         match self {
-            Range::Today => self.platform_specific(is_wakapi, "today", || panic!("Today is not supported for Wakatime platform")),
-            Range::Yesterday => self.platform_specific(is_wakapi, "yesterday", || panic!("Yesterday is not supported for Wakatime platform")),
+            Range::Today => self.platform_specific(is_wakapi, "today", || {
+                panic!("Today is not supported for Wakatime platform")
+            }),
+            Range::Yesterday => self.platform_specific(is_wakapi, "yesterday", || {
+                panic!("Yesterday is not supported for Wakatime platform")
+            }),
             Range::Week => self.platform_specific(is_wakapi, "week", || "last_7_days".to_string()),
-            Range::Month => self.platform_specific(is_wakapi, "month", || "last_30_days".to_string()),
-            Range::This7Days => self.platform_specific(is_wakapi, "7_days", || "last_7_days".to_string()),
+            Range::Month => {
+                self.platform_specific(is_wakapi, "month", || "last_30_days".to_string())
+            }
+            Range::This7Days => {
+                self.platform_specific(is_wakapi, "7_days", || "last_7_days".to_string())
+            }
             Range::Last7Days => "last_7_days".to_string(),
-            Range::This30Days => self.platform_specific(is_wakapi, "30_days", || "last_30_days".to_string()),
+            Range::This30Days => {
+                self.platform_specific(is_wakapi, "30_days", || "last_30_days".to_string())
+            }
             Range::Last30Days => "last_30_days".to_string(),
-            Range::This6Months => self.platform_specific(is_wakapi, "6_months", || "last_6_months".to_string()),
+            Range::This6Months => {
+                self.platform_specific(is_wakapi, "6_months", || "last_6_months".to_string())
+            }
             Range::Last6Months => "last_6_months".to_string(),
-            Range::This12Month => self.platform_specific(is_wakapi, "12_months", || "last_year".to_string()),
+            Range::This12Month => {
+                self.platform_specific(is_wakapi, "12_months", || "last_year".to_string())
+            }
             Range::LastYear => "last_year".to_string(),
             Range::AllTime => "all_time".to_string(),
             Range::Any => self.platform_specific(is_wakapi, "any", || "all_time".to_string()),
@@ -54,7 +64,7 @@ impl Range {
 
     fn platform_specific<F>(&self, is_wakapi: bool, wakapi_value: &str, wakatime_fn: F) -> String
     where
-        F: FnOnce() -> String
+        F: FnOnce() -> String,
     {
         if is_wakapi {
             wakapi_value.to_string()
@@ -96,7 +106,7 @@ pub struct StatisticData {
     categories: Vec<WrappedStatistic>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct WrappedStatistic {
     digital: String,
     hours: u64,
@@ -266,7 +276,7 @@ fn create_req(f_url: &str, config: &Config) -> RequestBuilder {
     } else {
         let base64_token = base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,
-            config.get_wakatime_api_token()
+            config.get_wakatime_api_token(),
         );
         format!("Basic {}", base64_token)
     };
@@ -293,7 +303,7 @@ pub fn get_from(url: &str, config: &Config) -> Result<Statistic, WakatimeApiErro
 
     // Extract the text (moves response)
     let text = response.text()?;
-    println!("Response body: {}", text);
+    // println!("Response body: {}", text);
 
     // Deserialize the response
     match serde_json::from_str::<Statistic>(&text) {
@@ -303,7 +313,7 @@ pub fn get_from(url: &str, config: &Config) -> Result<Statistic, WakatimeApiErro
             // Create a compatible error using io::Error as an intermediary
             let io_error = std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
-                format!("Deserialization error: {}", e)
+                format!("Deserialization error: {}", e),
             );
             Err(WakatimeApiError::DeserializationError(io_error))
         }
