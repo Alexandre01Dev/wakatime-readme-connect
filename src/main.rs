@@ -71,7 +71,7 @@ fn main() {
             loop {
                 // Creation of the modules.
                 let module_editors: TopEditorsModule =
-                    md_modules::TopEditorsModule::new(Range::This6Months);
+                    md_modules::TopEditorsModule::new(Range::AllTime);
 
                 let module_languages_week: modules::top_languages::TopLanguagesModule =
                     modules::top_languages::TopLanguagesModule::new_with_name(
