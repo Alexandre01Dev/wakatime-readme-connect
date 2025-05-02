@@ -21,6 +21,7 @@ impl HeartBeatsStatus {
 
 static mut HB_COUNT: usize = 0;
 static mut LAST_CHANGE: i64 = 0;
+const SLEEP_MESSAGE: &str = "> I'm sleeping 🛌 or I'm busy with other things than coding. \n\n";
 impl MdModule for HeartBeatsStatus {
     fn render(&self, _: &StatisticData, heartbeats: &HeartBeats) -> String {
         let mut result = format!("## {} \n\n", self.name());
@@ -35,11 +36,15 @@ impl MdModule for HeartBeatsStatus {
 
         // if + 10 minutes from LAST_CHANGE
         if count == 0 || unsafe { chrono::Utc::now().timestamp() - LAST_CHANGE > 600 } {
-            return "> I'm sleeping 🛌 or I'm busy with other things than computer.".to_string();
+            return SLEEP_MESSAGE.to_string();
         }
 
         let last: &HeartBeat = data.iter().last().unwrap();
+        let last_chrono = chrono::Utc::now().timestamp() - last.get_time() as i64;
 
+        if last.get_time() == 0 || last_chrono > 600 {
+            return SLEEP_MESSAGE.to_string();
+        }
         let icon_html = format!(
             "<img src=\"{}\" alt=\"{}\" width=\"20\" height=\"20\">",
             lang_icons::search_icon(last.get_language()),
