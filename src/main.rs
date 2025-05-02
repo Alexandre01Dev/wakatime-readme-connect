@@ -97,7 +97,7 @@ fn main() {
                     );
 
                 // Create modules document
-                let mut modules = md_modules::MdDocument::new("Wakatime Statistics", 60);
+                let mut modules = md_modules::MdDocument::new("Wakatime Statistics", 60 * 5);
                 let time = modules.get_refresh_time();
                 // Add modules to the document
                 modules.add_module(Box::new(module_heartbeats_status));
@@ -106,7 +106,7 @@ fn main() {
                 modules.add_module(Box::new(module_languages_all_time));
                 let result = github_api::get_and_update(&config, modules);
                 match result {
-                    Ok(_) => println!("GitHub API call succeeded"),
+                    Ok(_) => println!("Update succeeded"),
                     Err(e) => eprintln!("GitHub API call failed: {}", e),
                 }
                 thread::sleep(Duration::from_secs(time));

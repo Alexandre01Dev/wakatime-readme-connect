@@ -1,8 +1,15 @@
 use crate::{config::Config, md_modules};
 use base64::{Engine, engine::general_purpose};
 use chrono::format;
+use lazy_static::lazy_static;
 use reqwest::blocking::Client;
 use serde_json::json;
+use std::sync::Mutex;
+
+// Use lazy_static and Mutex to safely handle static mutable state
+lazy_static! {
+    static ref LAST_MSG: Mutex<String> = Mutex::new(String::new());
+}
 
 pub fn get_and_update(
     config: &Config,
@@ -59,6 +66,15 @@ pub fn get_and_update(
         content.push_str(&modules.render(config));
         content.push_str("\n<!-- END_WAKATIME_BLOCK -->\n");
     }
+
+    // Check if content has changed
+    let mut last_msg = LAST_MSG.lock().unwrap();
+    if *last_msg == content {
+        println!("No changes detected, skipping update.");
+        return Ok(());
+    }
+    *last_msg = content.clone();
+
     // Encode en base64
     let updated_base64 = general_purpose::STANDARD.encode(&content);
 
