@@ -1,9 +1,9 @@
 use crate::config::Config;
-use crate::wakatime_api::{Range, StatisticData, WrappedStatistic, get_from_range};
+use crate::wakatime_api::{HeartBeats, Range, StatisticData, get_from_range, get_heartbeats_today};
 use std::collections::HashMap;
 
 pub trait MdModule {
-    fn render(&self, stat: &StatisticData) -> String;
+    fn render(&self, stat: &StatisticData, heartbeats: &HeartBeats) -> String;
     fn name(&self) -> &str;
     fn get_range(&self) -> &Range;
 }
@@ -22,7 +22,7 @@ impl TopEditorsModule {
 }
 
 impl MdModule for TopEditorsModule {
-    fn render(&self, statistic: &StatisticData) -> String {
+    fn render(&self, statistic: &StatisticData, _: &HeartBeats) -> String {
         let mut result = format!("## {}\n\n", self.name());
         result.push_str("```text\n");
 
@@ -58,13 +58,15 @@ impl MdModule for TopEditorsModule {
 pub struct MdDocument {
     title: String,
     modules: Vec<Box<dyn MdModule>>,
+    refresh_time: u64,
 }
 
 impl MdDocument {
-    pub fn new(title: &str) -> Self {
+    pub fn new(title: &str, refresh_time: u64) -> Self {
         MdDocument {
             title: title.to_string(),
             modules: Vec::new(),
+            refresh_time,
         }
     }
 
@@ -72,20 +74,33 @@ impl MdDocument {
         self.modules.push(module);
     }
 
+    pub fn get_refresh_time(&self) -> u64 {
+        self.refresh_time
+    }
     pub fn render(&self, config: &Config) -> String {
         let mut content = format!("# {}\n\n", self.title);
         let mut hash_map_range = HashMap::new();
+        let last_heartbeats: HeartBeats = {
+            let result = get_heartbeats_today(config);
+            match result {
+                Ok(heartbeats) => heartbeats,
+                Err(_) => HeartBeats::new(),
+            }
+        };
 
         for module in &self.modules {
             let statistic = if let Some(stat) = hash_map_range.get(module.get_range()) {
                 stat
             } else {
-                let range = module.get_range().clone(); // Clone the range to pass ownership
+                let range = module.get_range().clone();
                 let stat = get_from_range(range, config).unwrap();
                 hash_map_range.insert(module.get_range().clone(), stat);
                 hash_map_range.get(module.get_range()).unwrap()
             };
-            content.push_str(&format!("{}\n", &module.render(statistic.get_data()))); // Pass the required argument
+            content.push_str(&format!(
+                "{}\n",
+                &module.render(statistic.get_data(), &last_heartbeats)
+            ));
         }
 
         content

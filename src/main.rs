@@ -1,5 +1,6 @@
 use md_modules::{MdModule, TopEditorsModule};
 use std::{thread, time::Duration};
+use wakatime_api::get_heartbeats_today;
 
 use crate::wakatime_api::{Range, get_from_range};
 
@@ -15,6 +16,9 @@ fn main() {
     let config = config::load_config();
 
     let response = get_from_range(Range::This7Days, &config);
+
+    let test_heartbeat_resp = get_heartbeats_today(&config);
+    println!("Test heartbeat response: {:?}", test_heartbeat_resp);
 
     match response {
         Ok(statistic) => {
@@ -68,6 +72,7 @@ fn main() {
                 println!("Total seconds: {}", category.get_total_seconds());
                 println!("Percentage: {}", category.get_percent());
             }
+
             loop {
                 // Creation of the modules.
                 let module_editors: TopEditorsModule =
@@ -86,11 +91,16 @@ fn main() {
                         Range::AllTime,
                         5,
                     );
+                let module_heartbeats_status: modules::heartbeats_status::HeartBeatsStatus =
+                    modules::heartbeats_status::HeartBeatsStatus::new_with_name(
+                        "What I'm doing now ?".to_string(),
+                    );
 
                 // Create modules document
-                let mut modules = md_modules::MdDocument::new("Wakatime Statistics");
-
+                let mut modules = md_modules::MdDocument::new("Wakatime Statistics", 60);
+                let time = modules.get_refresh_time();
                 // Add modules to the document
+                modules.add_module(Box::new(module_heartbeats_status));
                 modules.add_module(Box::new(module_editors));
                 modules.add_module(Box::new(module_languages_week));
                 modules.add_module(Box::new(module_languages_all_time));
@@ -99,7 +109,7 @@ fn main() {
                     Ok(_) => println!("GitHub API call succeeded"),
                     Err(e) => eprintln!("GitHub API call failed: {}", e),
                 }
-                thread::sleep(Duration::from_secs(60 * 30)); // Sleep for 30 min
+                thread::sleep(Duration::from_secs(time));
                 println!("Reloading modules...");
             }
         }

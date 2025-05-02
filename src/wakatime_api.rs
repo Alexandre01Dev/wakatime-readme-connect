@@ -3,7 +3,6 @@ use crate::wakatime_error::WakatimeApiError;
 use reqwest::blocking::RequestBuilder;
 use serde::Deserialize;
 use std::cmp::PartialEq;
-use std::fmt::format;
 
 //**
 //*A user's coding activity for the given time range. Optional range can be a YYYY year, YYYY-MM month, or one of last_7_days, last_30_days, last_6_months, last_year, or all_time. When range isn’t present, the user’s public profile range is used. For accounts subscribed to the free plan, time ranges >= one year are updated on the first request. It’s best to always check is_up_to_date and retry your request when the response is stale. Stats are read-only representations of Heartbeats, Durations, and Summaries, created by joining multiple Heartbeats together when they’re within 15 minutes of each other. The 15 minutes default can be changed with your account’s Keystroke Timeout preference.
@@ -260,20 +259,26 @@ impl WrappedStatistic {
     }
 }
 
-fn create_req(f_url: &str, config: &Config) -> RequestBuilder {
+// optional boolean
+fn create_req(f_url: &str, config: &Config, compat_auto_url: bool) -> RequestBuilder {
     let mut base_url = config.get_wakatime_url().to_string();
     let user = config.get_wakatime_user();
-    if !base_url.ends_with('/') && !f_url.starts_with('/') {
+    if !base_url.ends_with('/') && (!f_url.starts_with('/') || compat_auto_url) {
         base_url.push('/');
+    }
+
+    if compat_auto_url {
+        base_url.push_str("compat/wakatime");
+        if !f_url.starts_with('/') {
+            base_url.push('/');
+        }
     }
     let url_with_base = format!("{}{}", base_url, f_url);
     let final_url = url_with_base.replacen("{}", &user, 1);
-
+    println!("URL: {}", final_url);
     let client = reqwest::blocking::Client::new();
 
-    let authorization_header = if config.get_wakatime_platform().eq(&Platform::Wakapi) {
-        format!("Bearer {}", config.get_wakatime_api_token())
-    } else {
+    let authorization_header = {
         let base64_token = base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,
             config.get_wakatime_api_token(),
@@ -291,7 +296,7 @@ pub fn get_from_range(range: Range, config: &Config) -> Result<Statistic, Wakati
     get_from(&url, config)
 }
 pub fn get_from(url: &str, config: &Config) -> Result<Statistic, WakatimeApiError> {
-    let request = create_req(url, config);
+    let request = create_req(url, config, false);
     let response = request.send()?;
 
     // Check status before extracting text
@@ -317,5 +322,136 @@ pub fn get_from(url: &str, config: &Config) -> Result<Statistic, WakatimeApiErro
             );
             Err(WakatimeApiError::DeserializationError(io_error))
         }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct HeartBeats {
+    data: Vec<HeartBeat>,
+    end: String,
+    start: String,
+    timezone: String,
+}
+
+impl HeartBeats {
+    pub fn new() -> Self {
+        HeartBeats {
+            data: Vec::new(),
+            end: String::new(),
+            start: String::new(),
+            timezone: String::new(),
+        }
+    }
+
+    pub fn get_data(&self) -> &Vec<HeartBeat> {
+        &self.data
+    }
+}
+
+#[derive(Deserialize, Debug)]
+pub struct HeartBeat {
+    id: String,
+    branch: String,
+    category: String,
+    entity: String,
+    is_write: bool,
+    language: String,
+    project: String,
+    time: u64,
+    #[serde(rename = "type")]
+    type_: String,
+    user_id: String,
+    machine_name_id: String,
+    user_agent_id: String,
+    lines: u64,
+    lineno: u64,
+    cursorpos: u64,
+    line_deletions: u64,
+    line_additions: u64,
+    created_at: String,
+}
+
+impl HeartBeat {
+    pub fn get_id(&self) -> &str {
+        &self.id
+    }
+    pub fn get_branch(&self) -> &str {
+        &self.branch
+    }
+    pub fn get_category(&self) -> &str {
+        &self.category
+    }
+    pub fn get_entity(&self) -> &str {
+        &self.entity
+    }
+    pub fn get_is_write(&self) -> bool {
+        self.is_write
+    }
+    pub fn get_language(&self) -> &str {
+        &self.language
+    }
+    pub fn get_project(&self) -> &str {
+        &self.project
+    }
+    pub fn get_time(&self) -> u64 {
+        self.time
+    }
+    pub fn get_type(&self) -> &str {
+        &self.type_
+    }
+    pub fn get_user_id(&self) -> &str {
+        &self.user_id
+    }
+    pub fn get_machine_name_id(&self) -> &str {
+        &self.machine_name_id
+    }
+    pub fn get_user_agent_id(&self) -> &str {
+        &self.user_agent_id
+    }
+    pub fn get_lines(&self) -> u64 {
+        self.lines
+    }
+    pub fn get_lineno(&self) -> u64 {
+        self.lineno
+    }
+    pub fn get_cursorpos(&self) -> u64 {
+        self.cursorpos
+    }
+    pub fn get_line_deletions(&self) -> u64 {
+        self.line_deletions
+    }
+    pub fn get_line_additions(&self) -> u64 {
+        self.line_additions
+    }
+    pub fn get_created_at(&self) -> &str {
+        &self.created_at
+    }
+}
+
+pub fn get_heartbeats_today(config: &Config) -> Result<HeartBeats, WakatimeApiError> {
+    let url = {
+        let current_date = chrono::Utc::now();
+        // YYYY-MM-DD
+        let format_date = current_date.format("%Y-%m-%d").to_string();
+        format!(
+            "/v1/users/{}/heartbeats?date={}",
+            config.get_wakatime_user(),
+            format_date
+        )
+    };
+    println!("URL: {}", url);
+    let request = create_req(&url, config, true);
+    let response = request.send().unwrap();
+
+    if response.status().is_success() {
+        let text = response.text().unwrap();
+        // println!("Response body: {}", text);
+        // Deserialize the Response
+        let heartbeats: HeartBeats = serde_json::from_str(&text).unwrap();
+        Ok(heartbeats)
+    } else {
+        Err(WakatimeApiError::RequestError(
+            response.error_for_status().unwrap_err(),
+        ))
     }
 }

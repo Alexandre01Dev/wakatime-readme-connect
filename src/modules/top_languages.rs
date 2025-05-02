@@ -1,8 +1,6 @@
-use chrono::format;
-
 use crate::lang_icons;
 use crate::md_modules::MdModule;
-use crate::wakatime_api::{Range, StatisticData};
+use crate::wakatime_api::{HeartBeats, Range, StatisticData};
 
 pub struct TopLanguagesModule {
     name: String,
@@ -24,7 +22,7 @@ impl TopLanguagesModule {
 }
 
 impl MdModule for TopLanguagesModule {
-    fn render(&self, statistic: &StatisticData) -> String {
+    fn render(&self, statistic: &StatisticData, _: &HeartBeats) -> String {
         let mut result = format!("## {} \n\n", self.name());
         //result.push_str("```text\n");
         let mut count = 0;
