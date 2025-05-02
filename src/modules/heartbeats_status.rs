@@ -21,7 +21,8 @@ impl HeartBeatsStatus {
 
 static mut HB_COUNT: usize = 0;
 static mut LAST_CHANGE: i64 = 0;
-const SLEEP_MESSAGE: &str = "> I'm sleeping 🛌 or I'm busy with other things than coding. \n\n";
+const SLEEP_MESSAGE: &str =
+    "> I'm currently sleeping 🛌 or I'm busy with other things than coding. \n\n";
 impl MdModule for HeartBeatsStatus {
     fn render(&self, _: &StatisticData, heartbeats: &HeartBeats) -> String {
         let mut result = format!("## {} \n\n", self.name());
