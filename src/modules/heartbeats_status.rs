@@ -1,5 +1,3 @@
-use chrono::{Datelike, format};
-
 use crate::lang_icons;
 use crate::md_modules::MdModule;
 use crate::wakatime_api::{HeartBeat, HeartBeats, Range, StatisticData};
@@ -23,6 +21,7 @@ static mut HB_COUNT: usize = 0;
 static mut LAST_CHANGE: i64 = 0;
 const SLEEP_MESSAGE: &str =
     "> I'm currently sleeping 🛌 or I'm busy with other things than coding. \n\n";
+const DELAY: i64 = 60 * 10;
 impl MdModule for HeartBeatsStatus {
     fn render(&self, _: &StatisticData, heartbeats: &HeartBeats) -> String {
         let mut result = format!("## {} \n\n", self.name());
@@ -36,14 +35,14 @@ impl MdModule for HeartBeatsStatus {
         }
 
         // if + 10 minutes from LAST_CHANGE
-        if count == 0 || unsafe { chrono::Utc::now().timestamp() - LAST_CHANGE > 600 } {
+        if count == 0 || unsafe { chrono::Utc::now().timestamp() - LAST_CHANGE > DELAY } {
             return SLEEP_MESSAGE.to_string();
         }
 
         let last: &HeartBeat = data.iter().last().unwrap();
         let last_chrono = chrono::Utc::now().timestamp() - last.get_time() as i64;
 
-        if last.get_time() == 0 || last_chrono > 600 {
+        if last.get_time() == 0 || last_chrono > DELAY {
             return SLEEP_MESSAGE.to_string();
         }
         let icon_html = format!(
